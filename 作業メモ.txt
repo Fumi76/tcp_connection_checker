@@ -1,0 +1,46 @@
+
+現状版を動かしたとき
+./tcp_connection_checker
+panic: dial tcp 127.0.0.1:50051: connect: connection refused
+
+goroutine 1 [running]:
+main.main()
+        /home/ec2-user/tcp_connection_checker/main.go:12 +0xe9
+
+panicにする必要はないが。
+
+exeを起動する別のラッパーが必要かもしれない、hot-restarterをさらに改造
+exeを子プロセスとして起動する
+sigtermを受信したらファイル/tmp/sigterm_signaled？を作る
+指定時間待機後、子プロセスと自分を終了させる
+
+appmesh-enovyはrootで動いていないので権限に注意
+postboxはrootで動いているので上記のファイルの作成はおそらくできるだろう
+
+tcp_connection_checkerは/tmp/sigterm_signaledがあれば異常終了にする
+
+いやヘルスチェック自体は別のコマンドなりを実行してその結果($?)から判定される
+
+-----
+ヘルスチェックコマンドについてはプログラム書かなくてもできるかも（すでにあるコマンドを使えそう）
+nc -zv <ipaddress> 80
+あるいは
+curl -v telnet://<ip address>:80
+ただコツがいりそう
+
+postbox:v0.2.0
+ncとwgetはあることを確認した
+
+ただシェルは書く必要がありそう
+いや以下のコマンドで対処できそう
+test ! -e /tmp/signaled && nc -zv localhost:50051
+もしくは
+/bin/sh -c "test ! -e /tmp/signaled && nc -zv localhost:50051"
+引用符で囲むこと
+
+
+appmesh-envoyのヘルスチェックを失敗させるエンドポイント
+http://localhost:9901/healthcheck/fail
+
+Envoy
+hot-restarter
